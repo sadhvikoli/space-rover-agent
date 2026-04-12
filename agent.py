@@ -38,7 +38,7 @@ class QAgent:
         self.gamma = 0.9
         self.epsilon = 1.0        # start at 1.0 — fully random exploration at first
         self.epsilon_min = 0.1    # never go below 10% random — always explore a little
-        self.epsilon_decay = 0.95 # multiply by 0.95 each episode to gradually reduce exploration
+        self.epsilon_decay = 0.99 # multiply by 0.95 each episode to gradually reduce exploration
         self.q_table = {}         # empty table — agent knows nothing at the start
         self.actions = 4          # UP, DOWN, LEFT, RIGHT
 
