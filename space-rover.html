@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Space Rover Agent Simulator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f4ef;
+      --surface:   #ffffff;
+      --surface2:  #f0ede6;
+      --border:    rgba(0,0,0,0.10);
+      --border2:   rgba(0,0,0,0.18);
+      --text:      #1c1c1a;
+      --text2:     #6b6a65;
+      --text3:     #9c9a94;
+      --blue:      #378ADD;
+      --blue-bg:   #E6F1FB;
+      --blue-text: #185FA5;
+      --green:     #639922;
+      --green-bg:  #EAF3DE;
+      --green-text:#3B6D11;
+      --amber:     #BA7517;
+      --amber-bg:  #FAEEDA;
+      --amber-text:#633806;
+      --red:       #E24B4A;
+      --red-bg:    #FCEBEB;
+      --red-text:  #A32D2D;
+      --purple-bg: #EEEDFE;
+      --purple-text:#3C3489;
+      --radius:    8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:        #181816;
+        --surface:   #222220;
+        --surface2:  #2a2a28;
+        --border:    rgba(255,255,255,0.10);
+        --border2:   rgba(255,255,255,0.18);
+        --text:      #e8e6df;
+        --text2:     #9c9a92;
+        --text3:     #6b6a65;
+        --blue-bg:   #0C447C;
+        --blue-text: #B5D4F4;
+        --green-bg:  #27500A;
+        --green-text:#C0DD97;
+        --amber-bg:  #633806;
+        --amber-text:#FAC775;
+        --red-bg:    #791F1F;
+        --red-text:  #F7C1C1;
+        --purple-bg: #3C3489;
+        --purple-text:#CECBF6;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1000px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-left h1 { font-size: 18px; font-weight: 600; }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+    .badge-rule   { background: var(--blue-bg);   color: var(--blue-text); }
+    .badge-rl     { background: var(--green-bg);  color: var(--green-text); }
+    .badge-train  { background: var(--amber-bg);  color: var(--amber-text); }
+
+    .ep-info { font-size: 12px; color: var(--text2); }
+
+    /* ── Metrics ── */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 480px) { .metrics { grid-template-columns: repeat(2,1fr); } }
+
+    .metric {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+    }
+    .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-val   { font-size: 22px; font-weight: 600; }
+    .metric-val.blue   { color: var(--blue); }
+    .metric-val.green  { color: var(--green); }
+    .metric-val.red    { color: var(--red); }
+    .metric-val.amber  { color: var(--amber); }
+
+    /* ── Main layout ── */
+    .main { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 16px; align-items: start; }
+    @media (max-width: 680px) { .main { grid-template-columns: 1fr; } }
+
+    /* ── Grid Canvas ── */
+    .grid-section {}
+    .status-bar {
+      font-size: 12px;
+      color: var(--text2);
+      min-height: 20px;
+      margin-bottom: 8px;
+    }
+    .canvas-wrap {
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    canvas#grid { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.12s, transform 0.08s;
+    }
+    button:hover  { background: var(--surface2); }
+    button:active { transform: scale(0.97); }
+    button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    button.primary:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    select {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .speed-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+    input[type=range] {
+      width: 90px;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+    .speed-val { font-size: 12px; font-weight: 500; color: var(--text); min-width: 24px; }
+
+    /* ── Side panel ── */
+    .side { display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+    }
+    .card h3 {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    /* Energy */
+    .energy-track { background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; }
+    .energy-fill  { height: 100%; border-radius: 6px; transition: width 0.2s, background 0.3s; }
+    .energy-row   { display: flex; justify-content: space-between; margin-top: 5px; font-size: 12px; color: var(--text2); }
+
+    /* Legend */
+    .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 8px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+    /* RL Chart */
+    .chart-label { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+    .chart-wrap  { position: relative; height: 110px; }
+    canvas#rl-chart { display: block; }
+    .chart-legend { display: flex; gap: 12px; margin-top: 6px; }
+    .chart-legend span { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+    /* Log */
+    .log-scroll {
+      max-height: 110px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: var(--text2);
+      line-height: 1.8;
+      scrollbar-width: thin;
+    }
+    .log-scroll::-webkit-scrollbar { width: 4px; }
+    .log-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .log-item { border-bottom: 0.5px solid var(--border); padding: 1px 0; }
+    .log-item:last-child { border: none; }
+    .log-item.collect { color: var(--green-text); }
+    .log-item.charge  { color: var(--amber-text); }
+    .log-item.crash   { color: var(--red-text); }
+    .log-item.info    { color: var(--blue-text); }
+    .log-item.done    { color: var(--purple-text); font-weight: 500; }
+
+    /* Comparison table */
+    .compare-wrap { margin-top: 18px; }
+    .compare-wrap h2 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+    table.compare {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.compare th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 10px;
+      border-bottom: 0.5px solid var(--border2);
+    }
+    table.compare td {
+      padding: 8px 10px;
+      border-bottom: 0.5px solid var(--border);
+      color: var(--text);
+    }
+    table.compare tr:last-child td { border: none; }
+    table.compare .winner { font-weight: 600; color: var(--green-text); }
+    .compare-note { font-size: 11px; color: var(--text3); margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <h1>Space Rover Simulator</h1>
+      <span class="badge badge-rule" id="agent-badge">Rule-Based Agent</span>
+    </div>
+    <span class="ep-info" id="ep-info"></span>
+  </header>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Resources</div>
+      <div class="metric-val blue" id="m-res">0 / 4</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Steps</div>
+      <div class="metric-val" id="m-steps">0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Collisions</div>
+      <div class="metric-val red" id="m-coll">0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Reward</div>
+      <div class="metric-val" id="m-reward">0.0</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="grid-section">
+      <div class="status-bar" id="status">Press Run to start the simulation.</div>
+      <div class="canvas-wrap">
+        <canvas id="grid" width="480" height="480"></canvas>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <select id="agent-sel" title="Select agent">
+          <option value="rule">Rule-Based Agent</option>
+          <option value="rl">Q-Learning Agent</option>
+        </select>
+        <button class="primary" id="btn-run" onclick="handleRun()">&#9654; Run</button>
+        <button id="btn-reset" onclick="handleReset()">&#x21BA; New Map</button>
+        <div class="speed-group">
+          Speed
+          <input type="range" id="speed" min="1" max="20" value="8" step="1"
+            oninput="document.getElementById('speed-val').textContent=this.value+'×'">
+          <span class="speed-val" id="speed-val">8×</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side">
+
+      <!-- Energy -->
+      <div class="card">
+        <h3>Energy</h3>
+        <div class="energy-track">
+          <div class="energy-fill" id="energy-fill" style="width:100%; background:#639922;"></div>
+        </div>
+        <div class="energy-row">
+          <span id="energy-val">100 / 100</span>
+          <span id="energy-pct">100%</span>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="card">
+        <h3>Legend</h3>
+        <div class="legend">
+          <div class="legend-item"><span class="swatch" style="background:#378ADD;"></span>Rover</div>
+          <div class="legend-item"><span class="swatch" style="background:#639922;border-radius:50%;"></span>Resource</div>
+          <div class="legend-item"><span class="swatch" style="background:#BA7517;"></span>Charger</div>
+          <div class="legend-item"><span class="swatch" style="background:#4a4a47;"></span>Obstacle</div>
+          <div class="legend-item"><span class="swatch" style="background:rgba(55,138,221,0.2);border:0.5px solid rgba(55,138,221,0.4);"></span>Trail</div>
+          <div class="legend-item"><span class="swatch" style="background:#f0ede6;border:0.5px solid rgba(0,0,0,0.1);"></span>Empty</div>
+        </div>
+      </div>
+
+      <!-- RL Chart -->
+      <div class="card">
+        <h3>Q-Learning Progress</h3>
+        <div class="chart-label" id="rl-label">No training data yet</div>
+        <div class="chart-wrap">
+          <canvas id="rl-chart" width="202" height="110" style="width:100%;height:110px;"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background:#378ADD;"></span>Reward</span>
+          <span><span class="dot" style="background:#639922; opacity:0.7;"></span>Resources ×10</span>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="card">
+        <h3>Event Log</h3>
+        <div class="log-scroll" id="log"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Comparison table (shown after both agents run) -->
+  <div class="compare-wrap" id="compare-wrap" style="display:none;">
+    <h2>&#9881; Comparison</h2>
+    <table class="compare">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Rule-Based</th>
+          <th>Q-Learning</th>
+        </tr>
+      </thead>
+      <tbody id="compare-body"></tbody>
+    </table>
+    <p class="compare-note" id="compare-note"></p>
+  </div>
+
+</div>
+
+<script>
+/* ================================================================
+   CONSTANTS  (mirrors env.py)
+   ================================================================ */
+const EMPTY = 0, OBSTACLE = -1, RESOURCE = 1, CHARGER = 2;
+const UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3;
+const SIZE = 8, CELL = 60;
+
+/* ================================================================
+   ENVIRONMENT  (mirrors GridWorld)
+   ================================================================ */
+let grid, origGrid, agentPos, energy, steps, collisions, totalReward, resourcesLeft;
+let trail = [];
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+function placeItems(g, val, count) {
+  let placed = 0;
+  while (placed < count) {
+    const x = randInt(0, SIZE - 1), y = randInt(0, SIZE - 1);
+    if (g[x][y] === EMPTY && !(x === 0 && y === 0)) { g[x][y] = val; placed++; }
+  }
+}
+
+function makeGrid() {
+  const g = Array.from({ length: SIZE }, () => new Array(SIZE).fill(EMPTY));
+  placeItems(g, OBSTACLE, 8);
+  placeItems(g, RESOURCE, 4);
+  placeItems(g, CHARGER, 2);
+  return g;
+}
+
+function initEnv() {
+  grid = makeGrid();
+  origGrid = grid.map(r => [...r]);
+  resetStats();
+}
+
+function softReset() {
+  grid = origGrid.map(r => [...r]);
+  resetStats();
+}
+
+function resetStats() {
+  agentPos = [0, 0];
+  energy = 100; steps = 0; collisions = 0; totalReward = 0; resourcesLeft = 4;
+  trail = [];
+}
+
+function getState() {
+  return `${agentPos[0]},${agentPos[1]},${Math.floor(energy / 10)}`;
+}
+
+function doStep(action) {
+  let [x, y] = agentPos;
+  if (action === UP)    x--;
+  else if (action === DOWN)  x++;
+  else if (action === LEFT)  y--;
+  else                       y++;
+
+  // wall or obstacle
+  if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || grid[x][y] === OBSTACLE) {
+    collisions++;
+    totalReward -= 5;
+    return { reward: -5, done: false, event: 'crash' };
+  }
+
+  trail.push([...agentPos]);
+  if (trail.length > 35) trail.shift();
+
+  agentPos = [x, y];
+  energy--;
+  steps++;
+  let reward = -0.1;
+  let event = 'move';
+
+  if (grid[x][y] === RESOURCE) {
+    reward += 10;
+    resourcesLeft--;
+    grid[x][y] = EMPTY;
+    event = 'collect';
+  }
+  if (grid[x][y] === CHARGER) {
+    energy = Math.min(100, energy + 20);
+    event = 'charge';
+  }
+
+  totalReward += reward;
+  const done = energy <= 0;
+  return { reward, done, event };
+}
+
+/* ================================================================
+   RULE-BASED AGENT  (mirrors RuleBasedAgent)
+   ================================================================ */
+function manhDist(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); }
+
+function nearest(pos, targets) {
+  return targets.reduce((best, t) => manhDist(pos, t) < manhDist(pos, best) ? t : best, targets[0]);
+}
+
+function validMove(action, pos) {
+  let [x, y] = pos;
+  if (action === UP)    x--;
+  else if (action === DOWN)  x++;
+  else if (action === LEFT)  y--;
+  else                       y++;
+  return x >= 0 && x < SIZE && y >= 0 && y < SIZE && grid[x][y] !== OBSTACLE;
+}
+
+function moveToward(target) {
+  const [x, y] = agentPos, [tx, ty] = target;
+  const pref = [];
+  if (tx < x) pref.push(UP);    else if (tx > x) pref.push(DOWN);
+  if (ty < y) pref.push(LEFT);  else if (ty > y) pref.push(RIGHT);
+  for (const a of [UP, DOWN, LEFT, RIGHT]) if (!pref.includes(a)) pref.push(a);
+  for (const a of pref) if (validMove(a, agentPos)) return a;
+  return randomValid();
+}
+
+function randomValid() {
+  const valid = [UP, DOWN, LEFT, RIGHT].filter(a => validMove(a, agentPos));
+  return valid.length ? valid[randInt(0, valid.length - 1)] : UP;
+}
+
+function ruleAction() {
+  const resources = [], chargers = [];
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    if (grid[r][c] === RESOURCE) resources.push([r, c]);
+    if (grid[r][c] === CHARGER)  chargers.push([r, c]);
+  }
+  if (energy < 25 && chargers.length) return moveToward(nearest(agentPos, chargers));
+  if (resources.length) return moveToward(nearest(agentPos, resources));
+  return randomValid();
+}
+
+/* ================================================================
+   Q-LEARNING AGENT  (mirrors QAgent + train.py)
+   ================================================================ */
+let qTable = {}, epsilon = 0.1, rlTrained = false, rlHistory = [];
+
+function qGet(s) { if (!qTable[s]) qTable[s] = [0, 0, 0, 0]; return qTable[s]; }
+
+function rlAction(s) {
+  if (Math.random() < epsilon) return randInt(0, 3);
+  const q = qGet(s);
+  return q.indexOf(Math.max(...q));
+}
+
+function qUpdate(s, a, r, ns) {
+  const q = qGet(s), nq = qGet(ns);
+  q[a] = q[a] + 0.1 * (r + 0.9 * Math.max(...nq) - q[a]);
+}
+
+function trainRL() {
+  qTable = {}; epsilon = 1.0; rlHistory = [];
+  initEnv(); // fresh map to train on
+
+  for (let ep = 0; ep < 100; ep++) {
+    softReset();
+    let s = getState();
+    for (let t = 0; t < 200; t++) {
+      const a = rlAction(s);
+      const { reward, done } = doStep(a);
+      const ns = getState();
+      qUpdate(s, a, reward, ns);
+      s = ns;
+      if (done || steps >= 200) break;
+    }
+    if (epsilon > 0.1) epsilon *= 0.95;
+    rlHistory.push({ ep: ep + 1, reward: totalReward, res: 4 - resourcesLeft });
+  }
+
+  epsilon = 0.1;
+  rlTrained = true;
+  drawRLChart();
+  document.getElementById('rl-label').textContent = '100 episodes complete';
+}
+
+/* ================================================================
+   CANVAS RENDERING
+   ================================================================ */
+const gridCanvas = document.getElementById('grid');
+const ctx        = gridCanvas.getContext('2d');
+const dark       = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+const COLORS = {
+  empty:    () => dark() ? '#1e1e1c' : '#f5f4ef',
+  obstacle: () => dark() ? '#3a3a38' : '#4a4a47',
+  resource: () => '#639922',
+  charger:  () => '#BA7517',
+  rover:    () => '#378ADD',
+  trail:    () => dark() ? 'rgba(55,138,221,0.14)' : 'rgba(55,138,221,0.16)',
+  gridLine: () => dark() ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
+};
+
+function rrect(cx, x, y, w, h, r) {
+  cx.beginPath();
+  cx.moveTo(x + r, y);
+  cx.lineTo(x + w - r, y);
+  cx.arcTo(x + w, y, x + w, y + r, r);
+  cx.lineTo(x + w, y + h - r);
+  cx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  cx.lineTo(x + r, y + h);
+  cx.arcTo(x, y + h, x, y + h - r, r);
+  cx.lineTo(x, y + r);
+  cx.arcTo(x, y, x + r, y, r);
+  cx.closePath();
+}
+
+function drawGrid() {
+  ctx.clearRect(0, 0, 480, 480);
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const px = c * CELL, py = r * CELL;
+      const isTrail = trail.some(([tr, tc]) => tr === r && tc === c);
+
+      // background
+      ctx.fillStyle = isTrail ? COLORS.trail() : COLORS.empty();
+      ctx.fillRect(px, py, CELL, CELL);
+
+      const v = grid[r][c];
+
+      if (v === OBSTACLE) {
+        ctx.fillStyle = COLORS.obstacle();
+        rrect(ctx, px + 7, py + 7, CELL - 14, CELL - 14, 5);
+        ctx.fill();
+      } else if (v === RESOURCE) {
+        // Circle
+        ctx.fillStyle = COLORS.resource();
+        ctx.beginPath();
+        ctx.arc(px + CELL / 2, py + CELL / 2, 15, 0, Math.PI * 2);
+        ctx.fill();
+        // Label
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 13px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('R', px + CELL / 2, py + CELL / 2);
+      } else if (v === CHARGER) {
+        ctx.fillStyle = COLORS.charger();
+        rrect(ctx, px + 9, py + 9, CELL - 18, CELL - 18, 7);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡', px + CELL / 2, py + CELL / 2 + 1);
+      }
+
+      // grid line
+      ctx.strokeStyle = COLORS.gridLine();
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(px, py, CELL, CELL);
+    }
+  }
+
+  // Rover
+  const [ar, ac] = agentPos;
+  const px = ac * CELL, py = ar * CELL;
+  ctx.fillStyle = COLORS.rover();
+  rrect(ctx, px + 8, py + 8, CELL - 16, CELL - 16, 9);
+  ctx.fill();
+
+  // rover icon — simple rocket/diamond
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('◈', px + CELL / 2, py + CELL / 2);
+}
+
+/* ================================================================
+   METRICS + UI
+   ================================================================ */
+function updateMetrics() {
+  document.getElementById('m-res').textContent   = `${4 - resourcesLeft} / 4`;
+  document.getElementById('m-steps').textContent = steps;
+  document.getElementById('m-coll').textContent  = collisions;
+
+  const rEl = document.getElementById('m-reward');
+  rEl.textContent = totalReward.toFixed(1);
+  rEl.className = 'metric-val ' + (totalReward >= 0 ? 'green' : 'red');
+
+  const pct = energy;
+  document.getElementById('energy-fill').style.width   = pct + '%';
+  document.getElementById('energy-fill').style.background =
+    pct > 50 ? '#639922' : pct > 25 ? '#BA7517' : '#E24B4A';
+  document.getElementById('energy-val').textContent = `${energy} / 100`;
+  document.getElementById('energy-pct').textContent = `${pct}%`;
+}
+
+function addLog(msg, type = '') {
+  const log = document.getElementById('log');
+  const el = document.createElement('div');
+  el.className = 'log-item ' + type;
+  el.textContent = `[${steps}] ${msg}`;
+  log.insertBefore(el, log.firstChild);
+  if (log.children.length > 60) log.removeChild(log.lastChild);
+}
+
+/* ================================================================
+   RL REWARD CHART
+   ================================================================ */
+const rlCanvas = document.getElementById('rl-chart');
+const rlCtx    = rlCanvas.getContext('2d');
+
+function drawRLChart() {
+  rlCtx.clearRect(0, 0, 202, 110);
+  if (!rlHistory.length) return;
+
+  const pad = 10, cw = 202 - pad * 2, ch = 110 - pad * 2;
+  const rewards = rlHistory.map(h => h.reward);
+  const minR = Math.min(...rewards), maxR = Math.max(...rewards);
+  const range = maxR - minR || 1;
+
+  const xp = i  => pad + (i / (rlHistory.length - 1)) * cw;
+  const yp = v  => pad + ch - ((v - minR) / range) * ch;
+
+  // zero line
+  if (minR < 0 && maxR > 0) {
+    const yz = yp(0);
+    rlCtx.strokeStyle = dark() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
+    rlCtx.lineWidth = 0.5;
+    rlCtx.setLineDash([3, 3]);
+    rlCtx.beginPath(); rlCtx.moveTo(pad, yz); rlCtx.lineTo(pad + cw, yz); rlCtx.stroke();
+    rlCtx.setLineDash([]);
+  }
+
+  // reward line (blue)
+  rlCtx.strokeStyle = '#378ADD';
+  rlCtx.lineWidth   = 1.5;
+  rlCtx.beginPath();
+  rlHistory.forEach((h, i) => {
+    if (i === 0) rlCtx.moveTo(xp(i), yp(h.reward));
+    else         rlCtx.lineTo(xp(i), yp(h.reward));
+  });
+  rlCtx.stroke();
+
+  // resources×10 line (green dashed)
+  rlCtx.strokeStyle = '#639922';
+  rlCtx.lineWidth   = 1;
+  rlCtx.setLineDash([3, 3]);
+  rlCtx.beginPath();
+  rlHistory.forEach((h, i) => {
+    const v = minR + (h.res * 10 / 40) * range;
+    if (i === 0) rlCtx.moveTo(xp(i), yp(v));
+    else         rlCtx.lineTo(xp(i), yp(v));
+  });
+  rlCtx.stroke();
+  rlCtx.setLineDash([]);
+}
+
+/* ================================================================
+   COMPARISON TABLE
+   ================================================================ */
+let ruleStats = null, rlStats = null;
+
+function saveStats(type) {
+  const s = { resources: 4 - resourcesLeft, collisions, steps, reward: totalReward };
+  if (type === 'rule') ruleStats = s;
+  else                 rlStats   = s;
+}
+
+function showComparison() {
+  if (!ruleStats || !rlStats) return;
+  document.getElementById('compare-wrap').style.display = 'block';
+
+  const metrics = [
+    { label: 'Resources collected', key: 'resources', higher: true },
+    { label: 'Collisions',          key: 'collisions', higher: false },
+    { label: 'Steps taken',         key: 'steps',      higher: false },
+    { label: 'Total reward',        key: 'reward',     higher: true  },
+  ];
+
+  const tbody = document.getElementById('compare-body');
+  tbody.innerHTML = '';
+
+  metrics.forEach(({ label, key, higher }) => {
+    const rv = ruleStats[key], rlv = rlStats[key];
+    const ruleWins = higher ? rv > rlv : rv < rlv;
+    const rlWins   = higher ? rlv > rv : rlv < rv;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${label}</td>
+      <td class="${ruleWins ? 'winner' : ''}">${typeof rv === 'number' && !Number.isInteger(rv) ? rv.toFixed(1) : rv}</td>
+      <td class="${rlWins   ? 'winner' : ''}">${typeof rlv === 'number' && !Number.isInteger(rlv) ? rlv.toFixed(1) : rlv}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const notes = [];
+  if (rlStats.steps < ruleStats.steps)    notes.push('RL agent found a more efficient path.');
+  if (rlStats.collisions > ruleStats.collisions) notes.push('Rule-based agent avoided obstacles more reliably.');
+  if (rlStats.reward > ruleStats.reward)  notes.push('RL agent achieved a higher total reward.');
+  document.getElementById('compare-note').textContent = notes.join(' ');
+}
+
+/* ================================================================
+   SIMULATION LOOP
+   ================================================================ */
+let simInterval = null, running = false;
+
+function getSpeed()    { return parseInt(document.getElementById('speed').value) || 8; }
+function getAgentType(){ return document.getElementById('agent-sel').value; }
+
+function handleRun() {
+  const type = getAgentType();
+  if (running) { stopSim(); return; }
+
+  if (type === 'rl' && !rlTrained) {
+    updateStatus('Training Q-learning agent (100 episodes)…');
+    setBadge('train');
+    document.getElementById('btn-run').disabled = true;
+    addLog('Starting RL training…', 'info');
+    setTimeout(() => {
+      trainRL();
+      addLog('Training complete. Running final episode…', 'info');
+      document.getElementById('btn-run').disabled = false;
+      startSimRun(type);
+    }, 60);
+    return;
+  }
+
+  startSimRun(type);
+}
+
+function startSimRun(type) {
+  softReset();
+  running = true;
+  setBadge(type);
+  document.getElementById('btn-run').textContent = '⏹ Stop';
+  document.getElementById('log').innerHTML = '';
+  addLog(`Starting ${type === 'rule' ? 'Rule-Based' : 'Q-Learning'} agent…`, 'info');
+  drawGrid(); updateMetrics();
+
+  simInterval = setInterval(() => tick(type), Math.max(25, 220 / getSpeed()));
+}
+
+function tick(type) {
+  if (steps >= 200 || energy <= 0 || resourcesLeft === 0) {
+    finishSim(type);
+    return;
+  }
+
+  const action = type === 'rule' ? ruleAction() : rlAction(getState());
+  const { reward, done, event } = doStep(action);
+
+  if (event === 'collect') addLog(`Collected resource at (${agentPos[0]},${agentPos[1]}) +10`, 'collect');
+  if (event === 'charge')  addLog(`Charged at (${agentPos[0]},${agentPos[1]}) +20 energy`, 'charge');
+  if (event === 'crash')   addLog(`Collision! -5 reward`, 'crash');
+
+  drawGrid();
+  updateMetrics();
+  updateStatus(`Step ${steps} — Energy ${energy} — ${4 - resourcesLeft}/4 resources`);
+
+  if (done || steps >= 200 || resourcesLeft === 0) finishSim(type);
+}
+
+function finishSim(type) {
+  clearInterval(simInterval);
+  running = false;
+  document.getElementById('btn-run').textContent = '▶ Run';
+
+  const reason = resourcesLeft === 0 ? 'All resources collected!'
+               : energy <= 0          ? 'Energy depleted.'
+                                      : 'Step limit reached.';
+
+  const msg = `Done — ${reason}  Reward: ${totalReward.toFixed(1)}  Steps: ${steps}`;
+  updateStatus(msg);
+  addLog(`— ${reason} reward=${totalReward.toFixed(1)} steps=${steps} collisions=${collisions}`, 'done');
+
+  saveStats(type);
+  showComparison();
+  drawGrid(); updateMetrics();
+}
+
+function stopSim() {
+  clearInterval(simInterval);
+  running = false;
+  document.getElementById('btn-run').textContent = '▶ Run';
+  updateStatus('Stopped.');
+}
+
+function handleReset() {
+  stopSim();
+  initEnv();
+  drawGrid(); updateMetrics();
+  updateStatus('New map generated. Press Run to start.');
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('compare-wrap').style.display = 'none';
+  ruleStats = null; rlStats = null;
+  // reset RL so it retrains on new map
+  qTable = {}; rlTrained = false; rlHistory = [];
+  drawRLChart();
+  document.getElementById('rl-label').textContent = 'No training data yet';
+}
+
+function updateStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+function setBadge(type) {
+  const b = document.getElementById('agent-badge');
+  if (type === 'rule')  { b.textContent = 'Rule-Based Agent'; b.className = 'badge badge-rule'; }
+  else if (type === 'rl')    { b.textContent = 'Q-Learning Agent'; b.className = 'badge badge-rl'; }
+  else                       { b.textContent = 'Training…';        b.className = 'badge badge-train'; }
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+initEnv();
+drawGrid();
+updateMetrics();
+</script>
+</body>
+</html>
