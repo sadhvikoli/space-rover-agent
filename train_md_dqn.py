@@ -1,12 +1,11 @@
 from env import GridWorld
 
 
-def train_md_dqn(agent, episodes=300, env=None):
+def train_md_dqn(agent, episodes=300):
     """
-    Train MD-DQN on a fixed shared map.
+    Train MD-DQN agent on a target task.
     """
-    if env is None:
-        env = GridWorld()
+    env = GridWorld()
 
     for ep in range(episodes):
         env.soft_reset()
