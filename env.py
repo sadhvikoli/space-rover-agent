@@ -32,7 +32,7 @@ class GridWorld:
     Rewards:
         +10   for collecting a resource
         -0.1  for each valid move (encourages efficiency)
-        -5    for hitting a wall or obstacle (discourages collisions)
+        -10    for hitting a wall or obstacle (discourages collisions)
     """
 
     def __init__(self, size=8, num_obstacles=8, num_resources=4, num_chargers=2):
@@ -163,7 +163,7 @@ class GridWorld:
         # check if move hits a wall or obstacle — don't move, penalize
         if not (0 <= x < self.size and 0 <= y < self.size) or self.grid[x][y] == OBSTACLE:
             self.collisions += 1
-            reward = -5
+            reward = -10
             self.total_reward += reward
             return self.get_state(), reward, False
 
@@ -171,7 +171,7 @@ class GridWorld:
         self.agent_pos = (x, y)
         self.energy -= 1
         self.steps += 1
-        reward = -0.1  # small penalty per move to encourage efficiency
+        reward = -0.2  # small penalty per move to encourage efficiency
 
         # collect resource if rover lands on one
         if self.grid[x][y] == RESOURCE:
