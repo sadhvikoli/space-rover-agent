@@ -1,11 +1,9 @@
 from env import GridWorld
 
 
-def train_dqn(agent, episodes=300):
-    """
-    Train DQN agent on one fixed map.
-    """
-    env = GridWorld()
+def train_dqn(agent, episodes=300, env=None):
+    if env is None:
+        env = GridWorld()
 
     for ep in range(episodes):
         env.soft_reset()

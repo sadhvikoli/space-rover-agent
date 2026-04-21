@@ -10,22 +10,55 @@ from md_dqn_agent import MDDQNAgent
 from train_md_dqn import train_md_dqn
 
 
+def clone_env(base_env, base_grid):
+    """
+    Create a fresh environment object with the exact same map layout
+    as the base environment.
+    """
+    env = GridWorld(
+        size=base_env.size,
+        num_obstacles=base_env.num_obstacles,
+        num_resources=base_env.num_resources,
+        num_chargers=base_env.num_chargers
+    )
+
+    # overwrite the randomly generated map with the shared base map
+    env.grid = base_grid.copy()
+    env.original_grid = base_grid.copy()
+
+    # reset rover state and stats
+    env.agent_pos = (0, 0)
+    env.energy = 100
+    env.resources_collected = 0
+    env.steps = 0
+    env.collisions = 0
+    env.total_reward = 0.0
+
+    return env
+
+
 if __name__ == "__main__":
     """
     Main entry point for the Space Rover simulation.
 
-    Runs four agents and compares performance:
-        1. Rule-Based Agent
-        2. Q-Learning Agent
-        3. DQN Agent
-        4. MD-DQN Agent
+    All agents use the SAME map layout for fair comparison,
+    but each gets its own environment object so results remain independent.
     """
+
+    print("Creating base map...")
+    base_env = GridWorld()
+    base_grid = base_env.original_grid.copy()
+
+    # create separate environments with the same map
+    rule_env = clone_env(base_env, base_grid)
+    rl_env = clone_env(base_env, base_grid)
+    dqn_env = clone_env(base_env, base_grid)
+    md_dqn_env = clone_env(base_env, base_grid)
 
     # -----------------------------
     # Rule-Based Agent
     # -----------------------------
-    print("Running Rule-Based Agent...")
-    rule_env = GridWorld()
+    print("\nRunning Rule-Based Agent...")
     rule_agent = RuleBasedAgent()
 
     while True:
@@ -41,11 +74,11 @@ if __name__ == "__main__":
     # -----------------------------
     # Q-Learning Agent
     # -----------------------------
-    print("\nTraining RL Agent...")
+    print("\nTraining Q-Learning Agent...")
     rl_agent = QAgent()
-    rl_env = train(rl_agent, episodes=300)
+    train(rl_agent, episodes=300, env=rl_env)
 
-    print("\nRunning RL Agent final episode...")
+    print("\nRunning Q-Learning Agent final episode...")
     rl_env.soft_reset()
     state = rl_env.get_state()
 
@@ -56,7 +89,7 @@ if __name__ == "__main__":
         if done or rl_env.steps >= 200:
             break
 
-    print(f"RL Agent   | Resources: {rl_env.resources_collected} | "
+    print(f"Q-Learning | Resources: {rl_env.resources_collected} | "
           f"Collisions: {rl_env.collisions} | Steps: {rl_env.steps}")
 
     # -----------------------------
@@ -64,7 +97,7 @@ if __name__ == "__main__":
     # -----------------------------
     print("\nTraining DQN Agent...")
     dqn_agent = DQNAgent()
-    dqn_env = train_dqn(dqn_agent, episodes=300)
+    train_dqn(dqn_agent, episodes=300, env=dqn_env)
 
     print("\nRunning DQN Agent final episode...")
     dqn_env.soft_reset()
@@ -78,10 +111,10 @@ if __name__ == "__main__":
         if done or dqn_env.steps >= 200:
             break
 
-    print(f"DQN Agent  | Resources: {dqn_env.resources_collected} | "
+    print(f"DQN        | Resources: {dqn_env.resources_collected} | "
           f"Collisions: {dqn_env.collisions} | Steps: {dqn_env.steps}")
 
-    # save source DQN
+    # save source DQN weights
     dqn_agent.save_weights("source_dqn.pth")
 
     # -----------------------------
@@ -90,7 +123,7 @@ if __name__ == "__main__":
     print("\nTraining MD-DQN Agent...")
     md_dqn_agent = MDDQNAgent()
     md_dqn_agent.load_source_weights("source_dqn.pth")
-    md_dqn_env = train_md_dqn(md_dqn_agent, episodes=300)
+    train_md_dqn(md_dqn_agent, episodes=300, env=md_dqn_env)
 
     print("\nRunning MD-DQN Agent final episode...")
     md_dqn_env.soft_reset()
