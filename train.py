@@ -4,9 +4,15 @@ from env import GridWorld
 def train(agent, episodes=300, env=None):
     """
     Train tabular Q-learning on a fixed map.
+
+    Returns:
+        env (GridWorld): trained environment
+        rewards_history (list): total reward per episode (for plotting)
     """
     if env is None:
         env = GridWorld()
+
+    rewards_history = []  # 🔥 store reward per episode
 
     for ep in range(episodes):
         env.soft_reset()
@@ -27,6 +33,8 @@ def train(agent, episodes=300, env=None):
 
         agent.decay_epsilon()
 
+        rewards_history.append(total_reward)  # 🔥 save reward
+
         if (ep + 1) % 10 == 0:
             print(
                 f"Episode {ep + 1} | Reward: {round(total_reward, 2)} "
@@ -34,4 +42,4 @@ def train(agent, episodes=300, env=None):
                 f"| Epsilon: {round(agent.epsilon, 3)}"
             )
 
-    return env
+    return env, rewards_history  # 🔥 return both

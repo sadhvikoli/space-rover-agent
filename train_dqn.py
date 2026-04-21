@@ -2,8 +2,17 @@ from env import GridWorld
 
 
 def train_dqn(agent, episodes=300, env=None):
+    """
+    Train DQN agent on a fixed map.
+
+    Returns:
+        env (GridWorld): trained environment
+        rewards_history (list): total reward per episode (for plotting)
+    """
     if env is None:
         env = GridWorld()
+
+    rewards_history = []
 
     for ep in range(episodes):
         env.soft_reset()
@@ -32,6 +41,7 @@ def train_dqn(agent, episodes=300, env=None):
                 break
 
         agent.decay_epsilon()
+        rewards_history.append(total_reward)
 
         if (ep + 1) % agent.target_update_freq == 0:
             agent.update_target_network()
@@ -45,4 +55,4 @@ def train_dqn(agent, episodes=300, env=None):
                 f"| Avg Loss: {round(avg_loss, 4)}"
             )
 
-    return env
+    return env, rewards_history
