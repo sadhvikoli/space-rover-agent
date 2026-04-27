@@ -2,126 +2,174 @@
 
 ## Project Overview
 
-This project simulates an autonomous rover navigating a 2D grid-based planetary surface. The rover must collect resources, avoid obstacles, and manage its energy by visiting charging stations — all without human intervention.
+This project simulates an autonomous rover navigating a 2D grid-based planetary surface. The rover must collect resources, avoid obstacles, and manage energy by visiting charging stations — all without human intervention.
 
-Two agents are implemented and compared:
-- **Rule-Based Agent** — follows fixed hand-coded rules, no learning
-- **Q-Learning Agent** — learns through trial and error using Reinforcement Learning
+We explore and compare four approaches:
+
+- Rule-Based Agent — fixed logic, no learning
+- Q-Learning Agent — tabular reinforcement learning
+- Deep Q-Network (DQN) — neural network-based learning
+- MD-DQN (Transfer Learning) — improves DQN using prior knowledge
 
 ---
 
 ## Project Structure
+
 ```
 space-rover-agent/
-├── env.py          # Grid environment — map, rover, rewards
-├── agent.py        # Q-learning agent
-├── rule_agent.py   # Rule-based agent
-├── train.py        # Training loop for RL agent
-└── main.py         # Run both agents and compare results
+├── env.py              # Grid environment (state, rewards, transitions)
+├── rule_agent.py       # Rule-based baseline agent
+├── agent.py            # Q-learning implementation
+├── dqn_agent.py        # Deep Q-Network agent
+├── md_dqn_agent.py     # Transfer learning (MD-DQN)
+├── train.py            # Training loops
+├── main.py             # Runs experiments & comparisons
+├── analysis.py         # Generates plots and metrics
+└── models/             # Saved trained models (.pth files)
 ```
 
 ---
 
 ## How to Run
 
-**Install dependencies:**
+**Install dependencies**
 ```bash
-pip install numpy
+pip install numpy torch matplotlib
 ```
 
-**Run the simulation:**
+**Run full experiment**
 ```bash
 python main.py
+```
+
+**Run analysis (plots)**
+```bash
+python analysis.py
 ```
 
 ---
 
 ## Environment
 
-- 8x8 grid map
-- Rover starts at position (0, 0)
-- Items placed randomly each run
+- Grid size: 8x8
+- Randomized maps across runs
+- Rover starts at (0, 0)
 
-| Cell | Symbol | Description |
-|------|--------|-------------|
-| Empty | . | Free cell rover can move into |
-| Obstacle | # | Blocked cell, rover cannot enter |
-| Resource | R | Collectible item, gives +10 reward |
-| Charger | C | Restores +20 energy when visited |
-| Rover | V | Current rover position |
+| Cell      | Symbol | Description       |
+|-----------|--------|-------------------|
+| Empty     | .      | Free space        |
+| Obstacle  | #      | Blocked cell      |
+| Resource  | R      | +10 reward        |
+| Charger   | C      | Restores energy   |
+| Rover     | V      | Agent position    |
 
 ---
 
-## Reward Structure
+## Reward Design
 
-| Event | Reward |
-|-------|--------|
-| Collect resource | +10 |
-| Valid move | -0.1 |
-| Hit wall or obstacle | -5 |
+| Event            | Reward |
+|------------------|--------|
+| Collect resource | +10    |
+| Move step        | -0.1   |
+| Collision        | -5     |
+| Recharge         | +5     |
 
 ---
 
 ## Agents
 
-### Rule-Based Agent
-Follows a fixed priority strategy:
-1. If energy < 25 → go to nearest charging station
-2. Go to nearest resource
-3. If nothing found → random valid move
+### 1. Rule-Based Agent
 
-No learning involved. Serves as a baseline for comparison.
+Uses predefined heuristics with no learning capability. Serves as the baseline for comparison.
 
-### Q-Learning Agent
-Uses Reinforcement Learning to learn an optimal policy through trial and error.
+### 2. Q-Learning Agent
 
-| Hyperparameter | Value | Description |
-|----------------|-------|-------------|
-| Alpha (α) | 0.1 | Learning rate |
-| Gamma (γ) | 0.9 | Discount factor |
-| Epsilon (ε) | 1.0 → 0.1 | Exploration rate, decays over episodes |
-| Episodes | 100 | Training episodes on fixed map |
+Tabular reinforcement learning that learns Q-values for each state-action pair.
 
-**State representation:** `(row, col, energy // 10)`  
-**Q-table:** `{ state : [Q_up, Q_down, Q_left, Q_right] }`
+**State Representation:** `(row, col, energy_level)`
+
+| Parameter          | Value      |
+|--------------------|------------|
+| Learning rate (a)  | 0.1        |
+| Discount factor (y)| 0.9        |
+| Exploration (e)    | 1.0 -> 0.1 |
+| Episodes           | 100        |
+
+### 3. Deep Q-Network (DQN)
+
+Uses a neural network to approximate Q-values, enabling it to handle larger state spaces.
+
+**Architecture:**
+- Input: state feature vector
+- Hidden layers: 128 -> 128 (ReLU)
+- Output: Q-values for 4 actions
+
+**Key Components:** Replay Buffer, Target Network, epsilon-greedy policy
+
+| Parameter     | Value      |
+|---------------|------------|
+| Learning rate | 0.001      |
+| Discount (y)  | 0.99       |
+| Exploration   | 1.0 -> 0.05|
+| Batch size    | 64         |
+| Target update | 20         |
+
+### 4. MD-DQN (Transfer Learning)
+
+Extends DQN by incorporating a pretrained source model, combining learned prior knowledge with new experience.
+
+**Modified Target:**
+```
+y = max(r + gamma * max Q_target(s', a'), Q_source(s, a))
+```
+
+**Benefits:** Faster learning, better early performance  
+**Limitation:** Sensitive to source-target similarity
 
 ---
 
-## Sample Output
-```
-Running Rule-Based Agent...
-Rule-Based | Resources: 4 | Collisions: 0 | Steps: 395
+## Results Summary
 
-Training RL Agent...
-Episode 10 | Reward: -121.8 | Resources: 1
-Episode 20 | Reward: -140.0 | Resources: 4
-Episode 50 | Reward: -35.0  | Resources: 1
-Episode 90 | Reward: 16.6   | Resources: 4
-Episode 100 | Reward: -10.0 | Resources: 3
+| Metric        | Rule-Based | Q-Learning | DQN   | MD-DQN |
+|---------------|------------|------------|-------|--------|
+| Resources     | 3.4        | 3.4        | 3.2   | 3.8    |
+| Collisions    | 0.0        | 2.8        | 0.0   | 0.0    |
+| Steps         | 180.0      | 160.0      | 140.8 | 160.0  |
+| Total Reward  | -2.0       | -26.0      | 3.84  | 6.0    |
 
-Running RL Agent final episode...
-RL Agent | Resources: 4 | Collisions: 1 | Steps: 200
-
--*-*- COMPARISON -*-*-
-Metric                  Rule-Based     RL Agent
-----------------------------------------------
-Resources                        4            4
-Collisions                       0            1
-Steps                          395          200
-Total Reward                 -10.0         15.0
-```
+**Key Findings:**
+- MD-DQN achieved the highest rewards, best resource collection, and fastest convergence
+- DQN was the most efficient in terms of steps taken with stable learning
+- Q-Learning showed slower and less stable performance
+- Rule-Based was safe but inefficient overall
 
 ---
 
-## Key Observations
+## Key Concepts
 
-- The RL agent starts with random behavior and improves over 100 episodes
-- By episode 90 the RL agent achieves positive rewards showing it has learned
-- The rule-based agent is consistent but can get stuck navigating around obstacles
-- The RL agent learns a more efficient path on familiar maps
+- Reinforcement Learning
+- Bellman Equation
+- Exploration vs Exploitation
+- Experience Replay
+- Transfer Learning
+
+---
+
+## Future Work
+
+- Multi-source transfer learning
+- More complex environments
+- Continuous state spaces
+- Advanced architectures (Double DQN, PPO)
+
+---
+
+## Conclusion
+
+MD-DQN improves learning by leveraging prior knowledge, resulting in faster convergence and better overall performance. While DQN is more efficient in navigation, MD-DQN achieves higher rewards, demonstrating the effectiveness of transfer learning in reinforcement learning.
 
 ---
 
 ## GitHub
 
-[https://github.com/sadhvikoli/space-rover-agent](https://github.com/sadhvikoli/space-rover-agent)
+https://github.com/sadhvikoli/space-rover-agent
