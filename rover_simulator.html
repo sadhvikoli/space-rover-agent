@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Space Rover Agent Simulator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f4ef;
+      --surface:   #ffffff;
+      --surface2:  #f0ede6;
+      --border:    rgba(0,0,0,0.10);
+      --border2:   rgba(0,0,0,0.18);
+      --text:      #1c1c1a;
+      --text2:     #6b6a65;
+      --text3:     #9c9a94;
+      --blue:      #378ADD;
+      --blue-bg:   #E6F1FB;
+      --blue-text: #185FA5;
+      --green:     #639922;
+      --green-bg:  #EAF3DE;
+      --green-text:#3B6D11;
+      --amber:     #BA7517;
+      --amber-bg:  #FAEEDA;
+      --amber-text:#633806;
+      --red:       #E24B4A;
+      --red-bg:    #FCEBEB;
+      --red-text:  #A32D2D;
+      --purple:    #7F77DD;
+      --purple-bg: #EEEDFE;
+      --purple-text:#3C3489;
+      --coral:     #D85A30;
+      --coral-bg:  #FAECE7;
+      --coral-text:#993C1D;
+      --radius:    8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:        #181816;
+        --surface:   #222220;
+        --surface2:  #2a2a28;
+        --border:    rgba(255,255,255,0.10);
+        --border2:   rgba(255,255,255,0.18);
+        --text:      #e8e6df;
+        --text2:     #9c9a92;
+        --text3:     #6b6a65;
+        --blue-bg:   #0C447C;
+        --blue-text: #B5D4F4;
+        --green-bg:  #27500A;
+        --green-text:#C0DD97;
+        --amber-bg:  #633806;
+        --amber-text:#FAC775;
+        --red-bg:    #791F1F;
+        --red-text:  #F7C1C1;
+        --purple-bg: #3C3489;
+        --purple-text:#CECBF6;
+        --coral-bg:  #713020;
+        --coral-text:#F0997B;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .container { max-width: 1060px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-left h1 { font-size: 18px; font-weight: 600; }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+    .badge-rule   { background: var(--blue-bg);   color: var(--blue-text); }
+    .badge-rl     { background: var(--green-bg);  color: var(--green-text); }
+    .badge-dqn    { background: var(--amber-bg);  color: var(--amber-text); }
+    .badge-mddqn  { background: var(--purple-bg); color: var(--purple-text); }
+    .badge-train  { background: var(--coral-bg);  color: var(--coral-text); }
+
+    .ep-info { font-size: 12px; color: var(--text2); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      border-bottom: 0.5px solid var(--border2);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 18px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text2);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      border-radius: 0;
+      transform: none;
+    }
+    .tab-btn:hover { color: var(--text); background: transparent; }
+    .tab-btn:active { transform: none; }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Metrics ── */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 480px) { .metrics { grid-template-columns: repeat(2,1fr); } }
+
+    .metric {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+    }
+    .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-val   { font-size: 22px; font-weight: 600; }
+    .metric-val.blue   { color: var(--blue); }
+    .metric-val.green  { color: var(--green); }
+    .metric-val.red    { color: var(--red); }
+    .metric-val.amber  { color: var(--amber); }
+    .metric-val.purple { color: var(--purple); }
+
+    /* ── Main layout ── */
+    .main { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; align-items: start; }
+    @media (max-width: 720px) { .main { grid-template-columns: 1fr; } }
+
+    /* ── Grid Canvas ── */
+    .status-bar { font-size: 12px; color: var(--text2); min-height: 20px; margin-bottom: 8px; }
+    .canvas-wrap { border: 0.5px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; }
+    canvas#grid { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.12s, transform 0.08s;
+    }
+    button:hover  { background: var(--surface2); }
+    button:active { transform: scale(0.97); }
+    button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    button.primary:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    select {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .speed-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+    input[type=range] { width: 90px; accent-color: var(--blue); cursor: pointer; }
+    .speed-val { font-size: 12px; font-weight: 500; color: var(--text); min-width: 24px; }
+
+    /* ── Side panel ── */
+    .side { display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+    }
+    .card h3 {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    /* Energy */
+    .energy-track { background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; }
+    .energy-fill  { height: 100%; border-radius: 6px; transition: width 0.2s, background 0.3s; }
+    .energy-row   { display: flex; justify-content: space-between; margin-top: 5px; font-size: 12px; color: var(--text2); }
+
+    /* Legend */
+    .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 8px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+    /* RL Chart */
+    .chart-label { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+    .chart-wrap  { position: relative; height: 110px; }
+    .chart-legend { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+    .chart-legend span { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+    /* Log */
+    .log-scroll {
+      max-height: 110px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: var(--text2);
+      line-height: 1.8;
+      scrollbar-width: thin;
+    }
+    .log-scroll::-webkit-scrollbar { width: 4px; }
+    .log-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .log-item { border-bottom: 0.5px solid var(--border); padding: 1px 0; }
+    .log-item:last-child { border: none; }
+    .log-item.collect { color: var(--green-text); }
+    .log-item.charge  { color: var(--amber-text); }
+    .log-item.crash   { color: var(--red-text); }
+    .log-item.info    { color: var(--blue-text); }
+    .log-item.done    { color: var(--purple-text); font-weight: 500; }
+
+    /* ── Analysis Tab ── */
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 600px) { .analysis-grid { grid-template-columns: 1fr; } }
+
+    .analysis-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+    }
+    .analysis-card h3 {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+    .chart-container { position: relative; }
+
+    /* ── Comparison Table ── */
+    .compare-section { margin-top: 0; }
+    .compare-section h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+
+    table.compare {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.compare th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 10px;
+      border-bottom: 0.5px solid var(--border2);
+    }
+    table.compare td {
+      padding: 8px 10px;
+      border-bottom: 0.5px solid var(--border);
+      color: var(--text);
+    }
+    table.compare tr:last-child td { border: none; }
+    table.compare .winner { font-weight: 600; color: var(--green-text); }
+    .compare-note { font-size: 11px; color: var(--text3); margin-top: 8px; }
+
+    /* pending state */
+    .analysis-pending {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      gap: 10px;
+      color: var(--text3);
+      font-size: 13px;
+    }
+    .pending-icon { font-size: 28px; opacity: 0.4; }
+
+    /* agent color dots in legend */
+    .agent-dot {
+      width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0;
+    }
+
+    /* normalized metrics info */
+    .norm-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--blue-bg);
+      color: var(--blue-text);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <h1>Space Rover Simulator</h1>
+      <span class="badge badge-rule" id="agent-badge">Rule-Based Agent</span>
+    </div>
+    <span class="ep-info" id="ep-info"></span>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('simulate')">Simulate</button>
+    <button class="tab-btn" onclick="switchTab('analysis')">Analysis</button>
+  </div>
+
+  <!-- ════════════════════════════════════
+       TAB 1 — SIMULATE
+  ════════════════════════════════════ -->
+  <div id="tab-simulate" class="tab-panel active">
+
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Resources</div>
+        <div class="metric-val blue" id="m-res">0 / 4</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Steps</div>
+        <div class="metric-val" id="m-steps">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Collisions</div>
+        <div class="metric-val red" id="m-coll">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Reward</div>
+        <div class="metric-val" id="m-reward">0.0</div>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+      <div class="grid-section">
+        <div class="status-bar" id="status">Press Run to start the simulation.</div>
+        <div class="canvas-wrap">
+          <canvas id="grid" width="480" height="480"></canvas>
+        </div>
+        <div class="controls">
+          <select id="agent-sel" title="Select agent">
+            <option value="rule">Rule-Based Agent</option>
+            <option value="rl">Q-Learning Agent</option>
+            <option value="dqn">DQN Agent</option>
+            <option value="mddqn">MD-DQN Agent</option>
+          </select>
+          <button class="primary" id="btn-run" onclick="handleRun()">&#9654; Run</button>
+          <button id="btn-reset" onclick="handleReset()">&#x21BA; New Map</button>
+          <div class="speed-group">
+            Speed
+            <input type="range" id="speed" min="1" max="20" value="8" step="1"
+              oninput="document.getElementById('speed-val').textContent=this.value+'×'">
+            <span class="speed-val" id="speed-val">8×</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side panel -->
+      <div class="side">
+        <!-- Energy -->
+        <div class="card">
+          <h3>Energy</h3>
+          <div class="energy-track">
+            <div class="energy-fill" id="energy-fill" style="width:100%; background:#639922;"></div>
+          </div>
+          <div class="energy-row">
+            <span id="energy-val">100 / 100</span>
+            <span id="energy-pct">100%</span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="card">
+          <h3>Legend</h3>
+          <div class="legend">
+            <div class="legend-item"><span class="swatch" style="background:#378ADD;"></span>Rover</div>
+            <div class="legend-item"><span class="swatch" style="background:#639922;border-radius:50%;"></span>Resource</div>
+            <div class="legend-item"><span class="swatch" style="background:#BA7517;"></span>Charger</div>
+            <div class="legend-item"><span class="swatch" style="background:#4a4a47;"></span>Obstacle</div>
+            <div class="legend-item"><span class="swatch" style="background:rgba(55,138,221,0.2);border:0.5px solid rgba(55,138,221,0.4);"></span>Trail</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--surface2);border:0.5px solid var(--border);"></span>Empty</div>
+          </div>
+        </div>
+
+        <!-- Learning Chart -->
+        <div class="card">
+          <h3>Learning Progress</h3>
+          <div class="chart-label" id="rl-label">Run an RL agent to see training curve</div>
+          <div class="chart-wrap">
+            <canvas id="rl-chart" width="202" height="110" style="width:100%;height:110px;"></canvas>
+          </div>
+          <div class="chart-legend">
+            <span><span class="dot" style="background:#378ADD;"></span>Reward</span>
+            <span><span class="dot" style="background:#639922;opacity:0.7;"></span>Resources ×10</span>
+          </div>
+        </div>
+
+        <!-- Log -->
+        <div class="card">
+          <h3>Event Log</h3>
+          <div class="log-scroll" id="log"></div>
+        </div>
+
+        <!-- Per-agent comparison (after each run) -->
+        <div class="card" id="compare-card" style="display:none;">
+          <h3>Runs so far</h3>
+          <table class="compare" id="compare-table">
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Res</th>
+                <th>Coll</th>
+                <th>Rew</th>
+              </tr>
+            </thead>
+            <tbody id="compare-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       TAB 2 — ANALYSIS
+  ════════════════════════════════════ -->
+  <div id="tab-analysis" class="tab-panel">
+
+    <div id="analysis-pending" class="analysis-pending">
+      <div class="pending-icon">📊</div>
+      <div>Run at least two different agents to unlock analysis.</div>
+    </div>
+
+    <div id="analysis-content" style="display:none;">
+
+      <!-- Agent colour key -->
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; font-size:12px; color:var(--text2);">
+        <span style="display:flex;align-items:center;gap:5px;"><span class="agent-dot" style="background:#378ADD;"></span>Rule-Based</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span class="agent-dot" style="background:#639922;"></span>Q-Learning</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span class="agent-dot" style="background:#BA7517;"></span>DQN</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span class="agent-dot" style="background:#7F77DD;"></span>MD-DQN</span>
+        <span style="margin-left:auto; font-size:11px; color:var(--text3);">Based on <span id="run-count">0</span> completed run(s) per agent</span>
+      </div>
+
+      <!-- Box plots row 1 -->
+      <div class="analysis-grid">
+        <div class="analysis-card">
+          <h3>Resources collected <span class="norm-badge">box plot</span></h3>
+          <div class="chart-container" style="height:200px;">
+            <canvas id="box-resources" role="img" aria-label="Box plot of resources collected per agent">Box plot of resources collected.</canvas>
+          </div>
+        </div>
+        <div class="analysis-card">
+          <h3>Total reward <span class="norm-badge">box plot</span></h3>
+          <div class="chart-container" style="height:200px;">
+            <canvas id="box-reward" role="img" aria-label="Box plot of total reward per agent">Box plot of total reward.</canvas>
+          </div>
+        </div>
+        <div class="analysis-card">
+          <h3>Collisions <span class="norm-badge">box plot</span></h3>
+          <div class="chart-container" style="height:200px;">
+            <canvas id="box-collisions" role="img" aria-label="Box plot of collisions per agent">Box plot of collisions.</canvas>
+          </div>
+        </div>
+        <div class="analysis-card">
+          <h3>Steps taken <span class="norm-badge">box plot</span></h3>
+          <div class="chart-container" style="height:200px;">
+            <canvas id="box-steps" role="img" aria-label="Box plot of steps taken per agent">Box plot of steps taken.</canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Normalised metrics bar -->
+      <div class="analysis-card" style="margin-bottom:16px;">
+        <h3>Normalised efficiency <span class="norm-badge">resources ÷ steps</span> &nbsp;&amp;&nbsp; <span class="norm-badge">collisions ÷ steps</span></h3>
+        <div class="chart-container" style="height:180px;">
+          <canvas id="chart-normalised" role="img" aria-label="Normalised resources per step and collision rate per step">Normalised metrics bar chart.</canvas>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--text2);">
+          <span><span class="dot" style="background:#378ADD;"></span>Resources / Step</span>
+          <span><span class="dot" style="background:#E24B4A;opacity:0.8;"></span>Collisions / Step</span>
+        </div>
+      </div>
+
+      <!-- Comparison table -->
+      <div class="analysis-card compare-section">
+        <h3>Average final metrics across all runs</h3>
+        <table class="compare">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th id="th-rule">Rule</th>
+              <th id="th-rl">Q-Learning</th>
+              <th id="th-dqn">DQN</th>
+              <th id="th-mddqn">MD-DQN</th>
+            </tr>
+          </thead>
+          <tbody id="analysis-compare-body"></tbody>
+        </table>
+        <p class="compare-note" id="analysis-note"></p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ================================================================
+   CONSTANTS
+   ================================================================ */
+const EMPTY = 0, OBSTACLE = -1, RESOURCE = 1, CHARGER = 2;
+const UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3;
+const SIZE = 8, CELL = 60;
+
+/* ================================================================
+   ENVIRONMENT
+   ================================================================ */
+let grid, origGrid, agentPos, energy, steps, collisions, totalReward, resourcesLeft;
+let trail = [];
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+function placeItems(g, val, count) {
+  let placed = 0;
+  while (placed < count) {
+    const x = randInt(0, SIZE - 1), y = randInt(0, SIZE - 1);
+    if (g[x][y] === EMPTY && !(x === 0 && y === 0)) { g[x][y] = val; placed++; }
+  }
+}
+
+function makeGrid() {
+  const g = Array.from({ length: SIZE }, () => new Array(SIZE).fill(EMPTY));
+  placeItems(g, OBSTACLE, 8);
+  placeItems(g, RESOURCE, 4);
+  placeItems(g, CHARGER, 2);
+  return g;
+}
+
+function initEnv() {
+  grid = makeGrid();
+  origGrid = grid.map(r => [...r]);
+  resetStats();
+}
+
+function softReset() {
+  grid = origGrid.map(r => [...r]);
+  resetStats();
+}
+
+function resetStats() {
+  agentPos = [0, 0];
+  energy = 100; steps = 0; collisions = 0; totalReward = 0; resourcesLeft = 4;
+  trail = [];
+}
+
+function getState() {
+  return `${agentPos[0]},${agentPos[1]},${Math.floor(energy / 10)}`;
+}
+
+function featurizeState() {
+  const [x, y] = agentPos;
+  let nearRes = SIZE * 2, nearChg = SIZE * 2, numRes = 0;
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    const d = Math.abs(r - x) + Math.abs(c - y);
+    if (grid[r][c] === RESOURCE) { numRes++; if (d < nearRes) nearRes = d; }
+    if (grid[r][c] === CHARGER)  { if (d < nearChg) nearChg = d; }
+  }
+  return [
+    x / (SIZE - 1),
+    y / (SIZE - 1),
+    energy / 100,
+    numRes / 4,
+    nearRes / (2 * SIZE),
+    nearChg / (2 * SIZE),
+  ];
+}
+
+function doStep(action) {
+  let [x, y] = agentPos;
+  if (action === UP)    x--;
+  else if (action === DOWN)  x++;
+  else if (action === LEFT)  y--;
+  else                       y++;
+
+  if (x < 0 || x >= SIZE || y < 0 || y >= SIZE || grid[x][y] === OBSTACLE) {
+    collisions++;
+    totalReward -= 5;
+    return { reward: -5, done: false, event: 'crash' };
+  }
+
+  trail.push([...agentPos]);
+  if (trail.length > 35) trail.shift();
+
+  agentPos = [x, y];
+  energy--;
+  steps++;
+  let reward = -0.1;
+  let event = 'move';
+
+  if (grid[x][y] === RESOURCE) {
+    reward += 10;
+    resourcesLeft--;
+    grid[x][y] = EMPTY;
+    event = 'collect';
+  }
+  if (grid[x][y] === CHARGER) {
+    energy = Math.min(100, energy + 20);
+    event = 'charge';
+  }
+
+  totalReward += reward;
+  const done = energy <= 0;
+  return { reward, done, event };
+}
+
+/* ================================================================
+   RULE-BASED AGENT
+   ================================================================ */
+function manhDist(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); }
+function nearest(pos, targets) {
+  return targets.reduce((best, t) => manhDist(pos, t) < manhDist(pos, best) ? t : best, targets[0]);
+}
+function validMove(action, pos) {
+  let [x, y] = pos;
+  if (action === UP)    x--;
+  else if (action === DOWN)  x++;
+  else if (action === LEFT)  y--;
+  else                       y++;
+  return x >= 0 && x < SIZE && y >= 0 && y < SIZE && grid[x][y] !== OBSTACLE;
+}
+function moveToward(target) {
+  const [x, y] = agentPos, [tx, ty] = target;
+  const pref = [];
+  if (tx < x) pref.push(UP);    else if (tx > x) pref.push(DOWN);
+  if (ty < y) pref.push(LEFT);  else if (ty > y) pref.push(RIGHT);
+  for (const a of [UP, DOWN, LEFT, RIGHT]) if (!pref.includes(a)) pref.push(a);
+  for (const a of pref) if (validMove(a, agentPos)) return a;
+  return randomValid();
+}
+function randomValid() {
+  const valid = [UP, DOWN, LEFT, RIGHT].filter(a => validMove(a, agentPos));
+  return valid.length ? valid[randInt(0, valid.length - 1)] : UP;
+}
+function ruleAction() {
+  const resources = [], chargers = [];
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    if (grid[r][c] === RESOURCE) resources.push([r, c]);
+    if (grid[r][c] === CHARGER)  chargers.push([r, c]);
+  }
+  if (energy < 25 && chargers.length) return moveToward(nearest(agentPos, chargers));
+  if (resources.length) return moveToward(nearest(agentPos, resources));
+  return randomValid();
+}
+
+/* ================================================================
+   Q-LEARNING AGENT
+   ================================================================ */
+let qTable = {}, rlEpsilon = 0.1, rlTrained = false, rlHistory = [];
+
+function qGet(s) { if (!qTable[s]) qTable[s] = [0,0,0,0]; return qTable[s]; }
+function rlAction(s) {
+  if (Math.random() < rlEpsilon) return randInt(0, 3);
+  const q = qGet(s);
+  return q.indexOf(Math.max(...q));
+}
+function qUpdate(s, a, r, ns) {
+  const q = qGet(s), nq = qGet(ns);
+  q[a] = q[a] + 0.1 * (r + 0.9 * Math.max(...nq) - q[a]);
+}
+function trainRL() {
+  qTable = {}; rlEpsilon = 1.0; rlHistory = [];
+  initEnv();
+  for (let ep = 0; ep < 100; ep++) {
+    softReset();
+    let s = getState();
+    for (let t = 0; t < 200; t++) {
+      const a = rlAction(s);
+      const { reward, done } = doStep(a);
+      const ns = getState();
+      qUpdate(s, a, reward, ns);
+      s = ns;
+      if (done || steps >= 200) break;
+    }
+    if (rlEpsilon > 0.1) rlEpsilon *= 0.95;
+    rlHistory.push({ ep: ep + 1, reward: totalReward, res: 4 - resourcesLeft });
+  }
+  rlEpsilon = 0.1;
+  rlTrained = true;
+  drawRLChart();
+  document.getElementById('rl-label').textContent = 'Q-Learning: 100 episodes';
+}
+
+/* ================================================================
+   SIMPLE DQN  (shallow network in plain JS)
+   ================================================================ */
+// A lightweight 2-layer net: 6→32→4, weights stored as flat arrays
+let dqnW1, dqnB1, dqnW2, dqnB2;       // online net
+let dqnTW1, dqnTB1, dqnTW2, dqnTB2;  // target net
+let dqnMemory = [], dqnEpsilon = 1.0, dqnTrained = false, dqnHistory = [];
+let dqnSteps = 0;
+
+const DQN_IN = 6, DQN_H = 32, DQN_OUT = 4;
+const DQN_LR = 0.003, DQN_GAMMA = 0.99, DQN_BATCH = 32, DQN_TARGET_FREQ = 50;
+
+function randn() { // Box-Muller
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function initDQN() {
+  const scale1 = Math.sqrt(2 / DQN_IN), scale2 = Math.sqrt(2 / DQN_H);
+  dqnW1 = Array.from({length: DQN_H * DQN_IN}, () => randn() * scale1);
+  dqnB1 = new Array(DQN_H).fill(0);
+  dqnW2 = Array.from({length: DQN_OUT * DQN_H}, () => randn() * scale2);
+  dqnB2 = new Array(DQN_OUT).fill(0);
+  copyToTarget();
+}
+
+function copyToTarget() {
+  dqnTW1 = [...dqnW1]; dqnTB1 = [...dqnB1];
+  dqnTW2 = [...dqnW2]; dqnTB2 = [...dqnB2];
+}
+
+function relu(x) { return x > 0 ? x : 0; }
+
+function forward(x, W1, b1, W2, b2) {
+  const h = new Array(DQN_H);
+  for (let j = 0; j < DQN_H; j++) {
+    let s = b1[j];
+    for (let i = 0; i < DQN_IN; i++) s += W1[j * DQN_IN + i] * x[i];
+    h[j] = relu(s);
+  }
+  const out = new Array(DQN_OUT);
+  for (let k = 0; k < DQN_OUT; k++) {
+    let s = b2[k];
+    for (let j = 0; j < DQN_H; j++) s += W2[k * DQN_H + j] * h[j];
+    out[k] = s;
+  }
+  return { h, out };
+}
+
+function dqnQ(x)        { return forward(x, dqnW1, dqnB1, dqnW2, dqnB2).out; }
+function dqnQTarget(x)  { return forward(x, dqnTW1, dqnTB1, dqnTW2, dqnTB2).out; }
+
+function dqnChoose(state, greedy) {
+  if (!greedy && Math.random() < dqnEpsilon) return randInt(0, 3);
+  const q = dqnQ(state);
+  return q.indexOf(Math.max(...q));
+}
+
+function dqnUpdateStep() {
+  if (dqnMemory.length < DQN_BATCH) return 0;
+  const batch = [];
+  for (let i = 0; i < DQN_BATCH; i++)
+    batch.push(dqnMemory[randInt(0, dqnMemory.length - 1)]);
+
+  let totalLoss = 0;
+  const gW1 = new Array(DQN_H * DQN_IN).fill(0);
+  const gB1 = new Array(DQN_H).fill(0);
+  const gW2 = new Array(DQN_OUT * DQN_H).fill(0);
+  const gB2 = new Array(DQN_OUT).fill(0);
+
+  for (const [s, a, r, ns, done] of batch) {
+    const { h, out } = forward(s, dqnW1, dqnB1, dqnW2, dqnB2);
+    const nextQ = dqnQTarget(ns);
+    const target = r + (done ? 0 : DQN_GAMMA * Math.max(...nextQ));
+    const err = out[a] - target;
+    totalLoss += err * err;
+
+    // backprop output layer
+    const dOut = new Array(DQN_OUT).fill(0);
+    dOut[a] = 2 * err / DQN_BATCH;
+    for (let k = 0; k < DQN_OUT; k++) {
+      gB2[k] += dOut[k];
+      for (let j = 0; j < DQN_H; j++) gW2[k * DQN_H + j] += dOut[k] * h[j];
+    }
+    // backprop hidden layer
+    const dH = new Array(DQN_H).fill(0);
+    for (let j = 0; j < DQN_H; j++) {
+      for (let k = 0; k < DQN_OUT; k++) dH[j] += dOut[k] * dqnW2[k * DQN_H + j];
+      dH[j] *= h[j] > 0 ? 1 : 0;
+      gB1[j] += dH[j];
+      for (let i = 0; i < DQN_IN; i++) gW1[j * DQN_IN + i] += dH[j] * s[i];
+    }
+  }
+  // SGD update
+  for (let i = 0; i < gW1.length; i++) dqnW1[i] -= DQN_LR * gW1[i];
+  for (let i = 0; i < gB1.length; i++) dqnB1[i] -= DQN_LR * gB1[i];
+  for (let i = 0; i < gW2.length; i++) dqnW2[i] -= DQN_LR * gW2[i];
+  for (let i = 0; i < gB2.length; i++) dqnB2[i] -= DQN_LR * gB2[i];
+  dqnSteps++;
+  if (dqnSteps % DQN_TARGET_FREQ === 0) copyToTarget();
+  return totalLoss / DQN_BATCH;
+}
+
+function trainDQN() {
+  initDQN();
+  dqnMemory = []; dqnEpsilon = 1.0; dqnHistory = []; dqnSteps = 0;
+  initEnv();
+  for (let ep = 0; ep < 120; ep++) {
+    softReset();
+    let s = featurizeState();
+    for (let t = 0; t < 200; t++) {
+      const a = dqnChoose(s, false);
+      const { reward, done } = doStep(a);
+      const ns = featurizeState();
+      if (dqnMemory.length >= 5000) dqnMemory.shift();
+      dqnMemory.push([s, a, reward, ns, done ? 1 : 0]);
+      dqnUpdateStep();
+      s = ns;
+      if (done || steps >= 200) break;
+    }
+    if (dqnEpsilon > 0.05) dqnEpsilon *= 0.97;
+    dqnHistory.push({ ep: ep + 1, reward: totalReward, res: 4 - resourcesLeft });
+  }
+  dqnEpsilon = 0.05;
+  dqnTrained = true;
+  drawRLChart('dqn');
+  document.getElementById('rl-label').textContent = 'DQN: 120 episodes';
+}
+
+/* ================================================================
+   MD-DQN  (same net + source lower bound)
+   ================================================================ */
+let mdW1, mdB1, mdW2, mdB2;
+let mdTW1, mdTB1, mdTW2, mdTB2;
+let mdMemory = [], mdEpsilon = 1.0, mdTrained = false, mdHistory = [];
+let mdSteps = 0;
+const MD_SCALE = 0.85;
+
+function copyDQNToMD() {
+  mdW1 = [...dqnW1]; mdB1 = [...dqnB1];
+  mdW2 = [...dqnW2]; mdB2 = [...dqnB2];
+  mdTW1 = [...mdW1]; mdTB1 = [...mdB1];
+  mdTW2 = [...mdW2]; mdTB2 = [...mdB2];
+}
+
+function mdQ(x)       { return forward(x, mdW1, mdB1, mdW2, mdB2).out; }
+function mdQTarget(x) { return forward(x, mdTW1, mdTB1, mdTW2, mdTB2).out; }
+function srcQ(x)      { return forward(x, dqnW1, dqnB1, dqnW2, dqnB2).out; } // frozen source
+
+function mdChoose(state, greedy) {
+  if (!greedy && Math.random() < mdEpsilon) return randInt(0, 3);
+  const q = mdQ(state);
+  return q.indexOf(Math.max(...q));
+}
+
+function mdUpdateStep() {
+  if (mdMemory.length < DQN_BATCH) return 0;
+  const batch = [];
+  for (let i = 0; i < DQN_BATCH; i++)
+    batch.push(mdMemory[randInt(0, mdMemory.length - 1)]);
+
+  let totalLoss = 0;
+  const gW1 = new Array(DQN_H * DQN_IN).fill(0);
+  const gB1 = new Array(DQN_H).fill(0);
+  const gW2 = new Array(DQN_OUT * DQN_H).fill(0);
+  const gB2 = new Array(DQN_OUT).fill(0);
+
+  for (const [s, a, r, ns, done] of batch) {
+    const { h, out } = forward(s, mdW1, mdB1, mdW2, mdB2);
+    const nextQ = mdQTarget(ns);
+    const stdTarget = r + (done ? 0 : DQN_GAMMA * Math.max(...nextQ));
+
+    // MD lower bound from source network
+    const srcVals = srcQ(s);
+    const srcLB = srcVals[a] * MD_SCALE;
+    const target = Math.max(stdTarget, srcLB);
+
+    const err = out[a] - target;
+    totalLoss += err * err;
+
+    const dOut = new Array(DQN_OUT).fill(0);
+    dOut[a] = 2 * err / DQN_BATCH;
+    for (let k = 0; k < DQN_OUT; k++) {
+      gB2[k] += dOut[k];
+      for (let j = 0; j < DQN_H; j++) gW2[k * DQN_H + j] += dOut[k] * h[j];
+    }
+    const dH = new Array(DQN_H).fill(0);
+    for (let j = 0; j < DQN_H; j++) {
+      for (let k = 0; k < DQN_OUT; k++) dH[j] += dOut[k] * mdW2[k * DQN_H + j];
+      dH[j] *= h[j] > 0 ? 1 : 0;
+      gB1[j] += dH[j];
+      for (let i = 0; i < DQN_IN; i++) gW1[j * DQN_IN + i] += dH[j] * s[i];
+    }
+  }
+  for (let i = 0; i < gW1.length; i++) mdW1[i] -= DQN_LR * gW1[i];
+  for (let i = 0; i < gB1.length; i++) mdB1[i] -= DQN_LR * gB1[i];
+  for (let i = 0; i < gW2.length; i++) mdW2[i] -= DQN_LR * gW2[i];
+  for (let i = 0; i < gB2.length; i++) mdB2[i] -= DQN_LR * gB2[i];
+  mdSteps++;
+  if (mdSteps % DQN_TARGET_FREQ === 0) {
+    mdTW1=[...mdW1]; mdTB1=[...mdB1]; mdTW2=[...mdW2]; mdTB2=[...mdB2];
+  }
+  return totalLoss / DQN_BATCH;
+}
+
+function trainMDDQN() {
+  if (!dqnTrained) {
+    addLog('DQN source weights not ready — training DQN first…', 'info');
+    trainDQN();
+    softReset();
+  }
+  copyDQNToMD();
+  mdMemory = []; mdEpsilon = 1.0; mdHistory = []; mdSteps = 0;
+  initEnv();
+  for (let ep = 0; ep < 120; ep++) {
+    softReset();
+    let s = featurizeState();
+    for (let t = 0; t < 200; t++) {
+      const a = mdChoose(s, false);
+      const { reward, done } = doStep(a);
+      const ns = featurizeState();
+      if (mdMemory.length >= 5000) mdMemory.shift();
+      mdMemory.push([s, a, reward, ns, done ? 1 : 0]);
+      mdUpdateStep();
+      s = ns;
+      if (done || steps >= 200) break;
+    }
+    if (mdEpsilon > 0.05) mdEpsilon *= 0.97;
+    mdHistory.push({ ep: ep + 1, reward: totalReward, res: 4 - resourcesLeft });
+  }
+  mdEpsilon = 0.05;
+  mdTrained = true;
+  drawRLChart('mddqn');
+  document.getElementById('rl-label').textContent = 'MD-DQN: 120 episodes';
+}
+
+/* ================================================================
+   CANVAS RENDERING
+   ================================================================ */
+const gridCanvas = document.getElementById('grid');
+const ctx        = gridCanvas.getContext('2d');
+const dark       = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+const COLORS = {
+  empty:    () => dark() ? '#1e1e1c' : '#f5f4ef',
+  obstacle: () => dark() ? '#3a3a38' : '#4a4a47',
+  resource: () => '#639922',
+  charger:  () => '#BA7517',
+  rover:    () => '#378ADD',
+  trail:    () => dark() ? 'rgba(55,138,221,0.14)' : 'rgba(55,138,221,0.16)',
+  gridLine: () => dark() ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
+};
+
+function rrect(cx, x, y, w, h, r) {
+  cx.beginPath();
+  cx.moveTo(x+r,y); cx.lineTo(x+w-r,y); cx.arcTo(x+w,y,x+w,y+r,r);
+  cx.lineTo(x+w,y+h-r); cx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  cx.lineTo(x+r,y+h); cx.arcTo(x,y+h,x,y+h-r,r);
+  cx.lineTo(x,y+r); cx.arcTo(x,y,x+r,y,r);
+  cx.closePath();
+}
+
+function drawGrid() {
+  ctx.clearRect(0,0,480,480);
+  for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+    const px=c*CELL, py=r*CELL;
+    const isTrail = trail.some(([tr,tc])=>tr===r&&tc===c);
+    ctx.fillStyle = isTrail ? COLORS.trail() : COLORS.empty();
+    ctx.fillRect(px,py,CELL,CELL);
+    const v = grid[r][c];
+    if (v===OBSTACLE) {
+      ctx.fillStyle=COLORS.obstacle();
+      rrect(ctx,px+7,py+7,CELL-14,CELL-14,5); ctx.fill();
+    } else if (v===RESOURCE) {
+      ctx.fillStyle=COLORS.resource();
+      ctx.beginPath(); ctx.arc(px+CELL/2,py+CELL/2,15,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='bold 13px -apple-system,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('R',px+CELL/2,py+CELL/2);
+    } else if (v===CHARGER) {
+      ctx.fillStyle=COLORS.charger();
+      rrect(ctx,px+9,py+9,CELL-18,CELL-18,7); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('⚡',px+CELL/2,py+CELL/2+1);
+    }
+    ctx.strokeStyle=COLORS.gridLine(); ctx.lineWidth=0.5;
+    ctx.strokeRect(px,py,CELL,CELL);
+  }
+  const [ar,ac]=agentPos;
+  const px=ac*CELL, py=ar*CELL;
+  ctx.fillStyle=COLORS.rover();
+  rrect(ctx,px+8,py+8,CELL-16,CELL-16,9); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='bold 18px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('◈',px+CELL/2,py+CELL/2);
+}
+
+/* ================================================================
+   METRICS + UI
+   ================================================================ */
+function updateMetrics() {
+  document.getElementById('m-res').textContent   = `${4-resourcesLeft} / 4`;
+  document.getElementById('m-steps').textContent = steps;
+  document.getElementById('m-coll').textContent  = collisions;
+  const rEl = document.getElementById('m-reward');
+  rEl.textContent = totalReward.toFixed(1);
+  rEl.className = 'metric-val ' + (totalReward >= 0 ? 'green' : 'red');
+  const pct = energy;
+  document.getElementById('energy-fill').style.width = pct+'%';
+  document.getElementById('energy-fill').style.background = pct>50?'#639922':pct>25?'#BA7517':'#E24B4A';
+  document.getElementById('energy-val').textContent = `${energy} / 100`;
+  document.getElementById('energy-pct').textContent = `${pct}%`;
+}
+
+function addLog(msg, type='') {
+  const log = document.getElementById('log');
+  const el = document.createElement('div');
+  el.className = 'log-item '+type;
+  el.textContent = `[${steps}] ${msg}`;
+  log.insertBefore(el, log.firstChild);
+  if (log.children.length > 60) log.removeChild(log.lastChild);
+}
+
+/* ================================================================
+   RL / DQN REWARD CHART (side panel)
+   ================================================================ */
+const rlCanvas = document.getElementById('rl-chart');
+const rlCtx    = rlCanvas.getContext('2d');
+
+function drawRLChart(type) {
+  const hist = type==='dqn' ? dqnHistory : type==='mddqn' ? mdHistory : rlHistory;
+  rlCtx.clearRect(0,0,202,110);
+  if (!hist.length) return;
+  const pad=10, cw=202-pad*2, ch=110-pad*2;
+  const rewards = hist.map(h=>h.reward);
+  const minR=Math.min(...rewards), maxR=Math.max(...rewards);
+  const range=maxR-minR||1;
+  const xp=i=>pad+(i/(hist.length-1))*cw;
+  const yp=v=>pad+ch-((v-minR)/range)*ch;
+  if (minR<0&&maxR>0) {
+    const yz=yp(0);
+    rlCtx.strokeStyle=dark()?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.12)';
+    rlCtx.lineWidth=0.5; rlCtx.setLineDash([3,3]);
+    rlCtx.beginPath(); rlCtx.moveTo(pad,yz); rlCtx.lineTo(pad+cw,yz); rlCtx.stroke();
+    rlCtx.setLineDash([]);
+  }
+  rlCtx.strokeStyle='#378ADD'; rlCtx.lineWidth=1.5;
+  rlCtx.beginPath();
+  hist.forEach((h,i)=>{ if(i===0) rlCtx.moveTo(xp(i),yp(h.reward)); else rlCtx.lineTo(xp(i),yp(h.reward)); });
+  rlCtx.stroke();
+  rlCtx.strokeStyle='#639922'; rlCtx.lineWidth=1; rlCtx.setLineDash([3,3]);
+  rlCtx.beginPath();
+  hist.forEach((h,i)=>{ const v=minR+(h.res*10/40)*range; if(i===0) rlCtx.moveTo(xp(i),yp(v)); else rlCtx.lineTo(xp(i),yp(v)); });
+  rlCtx.stroke(); rlCtx.setLineDash([]);
+}
+
+/* ================================================================
+   PER-RUN RESULTS STORAGE (for analysis)
+   ================================================================ */
+const runHistory = { rule: [], rl: [], dqn: [], mddqn: [] };
+const agentColors = { rule: '#378ADD', rl: '#639922', dqn: '#BA7517', mddqn: '#7F77DD' };
+const agentLabels = { rule: 'Rule-Based', rl: 'Q-Learning', dqn: 'DQN', mddqn: 'MD-DQN' };
+
+function saveRun(type) {
+  runHistory[type].push({
+    resources: 4 - resourcesLeft,
+    collisions,
+    steps,
+    reward: totalReward,
+  });
+  updateCompareCard();
+  rebuildAnalysis();
+}
+
+function updateCompareCard() {
+  const card = document.getElementById('compare-card');
+  const tbody = document.getElementById('compare-body');
+  const types = ['rule','rl','dqn','mddqn'];
+  const hasAny = types.some(t => runHistory[t].length > 0);
+  if (!hasAny) { card.style.display='none'; return; }
+  card.style.display='block';
+  tbody.innerHTML = '';
+  for (const t of types) {
+    const runs = runHistory[t];
+    if (!runs.length) continue;
+    const last = runs[runs.length-1];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="display:flex;align-items:center;gap:5px;">
+        <span style="width:8px;height:8px;border-radius:2px;background:${agentColors[t]};display:inline-block;"></span>
+        ${agentLabels[t]}
+      </td>
+      <td>${last.resources}</td>
+      <td>${last.collisions}</td>
+      <td>${last.reward.toFixed(1)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+/* ================================================================
+   BOX PLOT HELPERS
+   ================================================================ */
+function fiveNum(arr) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a,b)=>a-b);
+  const n = s.length;
+  const q = p => {
+    const idx = p * (n - 1);
+    const lo = Math.floor(idx), hi = Math.ceil(idx);
+    return s[lo] + (s[hi]-s[lo])*(idx-lo);
+  };
+  const q1=q(0.25), q3=q(0.75), iqr=q3-q1;
+  const whisLo = s.find(v=>v>=q1-1.5*iqr) ?? s[0];
+  const whisHi = [...s].reverse().find(v=>v<=q3+1.5*iqr) ?? s[n-1];
+  const outliers = s.filter(v=>v<whisLo||v>whisHi);
+  return { min:whisLo, q1, median:q(0.5), q3, max:whisHi, outliers };
+}
+
+// Custom box plot drawn on a Chart.js "scatter" chart
+function buildBoxChart(canvasId, metric, activeTypes) {
+  const existing = Chart.getChart(canvasId);
+  if (existing) existing.destroy();
+
+  const labels = activeTypes.map(t => agentLabels[t]);
+  const colors = activeTypes.map(t => agentColors[t]);
+  const stats  = activeTypes.map(t => fiveNum(runHistory[t].map(r=>r[metric])));
+
+  // Use scatter datasets for individual points + custom plugin for box drawing
+  const datasets = activeTypes.map((t, i) => ({
+    label: agentLabels[t],
+    data: runHistory[t].map((r, ri) => ({ x: i, y: r[metric] })),
+    backgroundColor: colors[i] + '99',
+    pointRadius: 5,
+    pointHoverRadius: 6,
+    showLine: false,
+  }));
+
+  const boxPlugin = {
+    id: 'boxPlugin',
+    afterDatasetsDraw(chart) {
+      const { ctx, scales: { x, y } } = chart;
+      stats.forEach((s, i) => {
+        if (!s) return;
+        const cx = x.getPixelForValue(i);
+        const bw = 28;
+
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = colors[i];
+        ctx.fillStyle = colors[i] + '28';
+
+        // box
+        const yq1 = y.getPixelForValue(s.q1);
+        const yq3 = y.getPixelForValue(s.q3);
+        ctx.fillRect(cx-bw/2, yq3, bw, yq1-yq3);
+        ctx.strokeRect(cx-bw/2, yq3, bw, yq1-yq3);
+
+        // median
+        const ym = y.getPixelForValue(s.median);
+        ctx.beginPath(); ctx.moveTo(cx-bw/2, ym); ctx.lineTo(cx+bw/2, ym);
+        ctx.lineWidth = 2.5; ctx.stroke(); ctx.lineWidth = 1.5;
+
+        // whiskers
+        const yMin = y.getPixelForValue(s.min);
+        const yMax = y.getPixelForValue(s.max);
+        ctx.beginPath(); ctx.moveTo(cx, yq1); ctx.lineTo(cx, yMin); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, yq3); ctx.lineTo(cx, yMax); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx-bw/4, yMin); ctx.lineTo(cx+bw/4, yMin); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx-bw/4, yMax); ctx.lineTo(cx+bw/4, yMax); ctx.stroke();
+      });
+    }
+  };
+
+  new Chart(document.getElementById(canvasId), {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${agentLabels[activeTypes[ctx.datasetIndex]]}: ${ctx.parsed.y.toFixed(1)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          min: -0.5,
+          max: activeTypes.length - 0.5,
+          ticks: {
+            stepSize: 1,
+            callback: (v) => {
+              const i = Math.round(v);
+              return i >= 0 && i < activeTypes.length ? agentLabels[activeTypes[i]] : '';
+            },
+            font: { size: 11 },
+            autoSkip: false,
+            maxRotation: 0,
+          },
+          grid: { display: false },
+        },
+        y: {
+          grid: { color: dark()?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)' },
+          ticks: { font: { size: 11 } },
+        }
+      }
+    },
+    plugins: [boxPlugin]
+  });
+}
+
+function buildNormChart(activeTypes) {
+  const existing = Chart.getChart('chart-normalised');
+  if (existing) existing.destroy();
+
+  const labels = activeTypes.map(t => agentLabels[t]);
+  const resPerStep = activeTypes.map(t => {
+    const runs = runHistory[t];
+    if (!runs.length) return 0;
+    const avg = runs.reduce((s,r) => s + (r.steps > 0 ? r.resources / r.steps : 0), 0) / runs.length;
+    return parseFloat(avg.toFixed(4));
+  });
+  const collPerStep = activeTypes.map(t => {
+    const runs = runHistory[t];
+    if (!runs.length) return 0;
+    const avg = runs.reduce((s,r) => s + (r.steps > 0 ? r.collisions / r.steps : 0), 0) / runs.length;
+    return parseFloat(avg.toFixed(4));
+  });
+
+  new Chart(document.getElementById('chart-normalised'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Resources / Step',
+          data: resPerStep,
+          backgroundColor: activeTypes.map(t => agentColors[t] + 'bb'),
+          borderColor:     activeTypes.map(t => agentColors[t]),
+          borderWidth: 1,
+        },
+        {
+          label: 'Collisions / Step',
+          data: collPerStep,
+          backgroundColor: '#E24B4A55',
+          borderColor: '#E24B4A',
+          borderWidth: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: {
+          grid: { color: dark()?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)' },
+          ticks: { font: { size: 11 }, callback: v => v.toFixed(3) }
+        }
+      }
+    }
+  });
+}
+
+function rebuildAnalysis() {
+  const activeTypes = ['rule','rl','dqn','mddqn'].filter(t => runHistory[t].length > 0);
+  const pending = document.getElementById('analysis-pending');
+  const content = document.getElementById('analysis-content');
+
+  if (activeTypes.length < 2) {
+    pending.style.display='flex';
+    content.style.display='none';
+    return;
+  }
+
+  pending.style.display='none';
+  content.style.display='block';
+
+  const maxRuns = Math.max(...activeTypes.map(t => runHistory[t].length));
+  document.getElementById('run-count').textContent = maxRuns;
+
+  buildBoxChart('box-resources', 'resources', activeTypes);
+  buildBoxChart('box-reward',    'reward',    activeTypes);
+  buildBoxChart('box-collisions','collisions',activeTypes);
+  buildBoxChart('box-steps',     'steps',     activeTypes);
+  buildNormChart(activeTypes);
+  buildSummaryTable(activeTypes);
+}
+
+function avg(arr, key) {
+  if (!arr.length) return null;
+  return arr.reduce((s,r)=>s+r[key],0)/arr.length;
+}
+
+function buildSummaryTable(activeTypes) {
+  const metrics = [
+    { label: 'Resources collected', key: 'resources', higher: true },
+    { label: 'Collisions',          key: 'collisions', higher: false },
+    { label: 'Steps taken',         key: 'steps',      higher: false },
+    { label: 'Total reward',        key: 'reward',     higher: true },
+  ];
+
+  const tbody = document.getElementById('analysis-compare-body');
+  tbody.innerHTML = '';
+
+  metrics.forEach(({ label, key, higher }) => {
+    const avgs = activeTypes.map(t => avg(runHistory[t], key));
+    const best = higher ? Math.max(...avgs) : Math.min(...avgs);
+    const tr = document.createElement('tr');
+    let cells = `<td>${label}</td>`;
+    ['rule','rl','dqn','mddqn'].forEach(t => {
+      const i = activeTypes.indexOf(t);
+      if (i < 0) { cells += `<td style="color:var(--text3)">—</td>`; return; }
+      const v = avgs[i];
+      const isWinner = Math.abs(v - best) < 0.001;
+      cells += `<td class="${isWinner?'winner':''}">${typeof v==='number'?v.toFixed(1):v}</td>`;
+    });
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+
+  const notes = [];
+  const rlAvg   = avg(runHistory.rl,     'reward');
+  const dqnAvg  = avg(runHistory.dqn,    'reward');
+  const mdAvg   = avg(runHistory.mddqn,  'reward');
+  const ruleAvg = avg(runHistory.rule,   'reward');
+  if (mdAvg !== null && dqnAvg !== null && mdAvg > dqnAvg)
+    notes.push('MD-DQN achieved higher average reward than DQN, suggesting successful transfer.');
+  if (rlAvg !== null && ruleAvg !== null && rlAvg < ruleAvg)
+    notes.push('Rule-based agent still outperforms Q-Learning — more training episodes may help.');
+  document.getElementById('analysis-note').textContent = notes.join(' ');
+}
+
+/* ================================================================
+   SIMULATION LOOP
+   ================================================================ */
+let simInterval = null, running = false;
+
+function getSpeed()    { return parseInt(document.getElementById('speed').value)||8; }
+function getAgentType(){ return document.getElementById('agent-sel').value; }
+
+function handleRun() {
+  const type = getAgentType();
+  if (running) { stopSim(); return; }
+
+  if (type==='rl' && !rlTrained) {
+    updateStatus('Training Q-Learning agent (100 episodes)…');
+    setBadge('train');
+    document.getElementById('btn-run').disabled=true;
+    addLog('Starting Q-Learning training…','info');
+    setTimeout(()=>{
+      trainRL();
+      addLog('Training complete. Running final episode…','info');
+      document.getElementById('btn-run').disabled=false;
+      startSimRun(type);
+    },60);
+    return;
+  }
+  if (type==='dqn' && !dqnTrained) {
+    updateStatus('Training DQN agent (120 episodes)…');
+    setBadge('train');
+    document.getElementById('btn-run').disabled=true;
+    addLog('Starting DQN training…','info');
+    setTimeout(()=>{
+      trainDQN();
+      addLog('DQN training complete. Running final episode…','info');
+      document.getElementById('btn-run').disabled=false;
+      startSimRun(type);
+    },60);
+    return;
+  }
+  if (type==='mddqn' && !mdTrained) {
+    updateStatus('Training MD-DQN agent (120 episodes)…');
+    setBadge('train');
+    document.getElementById('btn-run').disabled=true;
+    addLog('Starting MD-DQN training…','info');
+    setTimeout(()=>{
+      trainMDDQN();
+      addLog('MD-DQN training complete. Running final episode…','info');
+      document.getElementById('btn-run').disabled=false;
+      startSimRun(type);
+    },60);
+    return;
+  }
+
+  startSimRun(type);
+}
+
+function startSimRun(type) {
+  softReset();
+  running=true;
+  setBadge(type);
+  document.getElementById('btn-run').textContent='⏹ Stop';
+  document.getElementById('log').innerHTML='';
+  addLog(`Starting ${agentLabels[type]} agent…`,'info');
+  drawGrid(); updateMetrics();
+  simInterval = setInterval(()=>tick(type), Math.max(25,220/getSpeed()));
+}
+
+function tick(type) {
+  if (steps>=200||energy<=0||resourcesLeft===0) { finishSim(type); return; }
+
+  let action;
+  if      (type==='rule')   action = ruleAction();
+  else if (type==='rl')     action = rlAction(getState());
+  else if (type==='dqn')    action = dqnChoose(featurizeState(), true);
+  else                      action = mdChoose(featurizeState(), true);
+
+  const { reward, done, event } = doStep(action);
+
+  if (event==='collect') addLog(`Collected resource at (${agentPos[0]},${agentPos[1]}) +10`,'collect');
+  if (event==='charge')  addLog(`Charged at (${agentPos[0]},${agentPos[1]}) +20 energy`,'charge');
+  if (event==='crash')   addLog(`Collision! -5 reward`,'crash');
+
+  drawGrid(); updateMetrics();
+  updateStatus(`Step ${steps} — Energy ${energy} — ${4-resourcesLeft}/4 resources`);
+  if (done||steps>=200||resourcesLeft===0) finishSim(type);
+}
+
+function finishSim(type) {
+  clearInterval(simInterval);
+  running=false;
+  document.getElementById('btn-run').textContent='▶ Run';
+  const reason = resourcesLeft===0 ? 'All resources collected!'
+               : energy<=0          ? 'Energy depleted.'
+                                    : 'Step limit reached.';
+  updateStatus(`Done — ${reason}  Reward: ${totalReward.toFixed(1)}  Steps: ${steps}`);
+  addLog(`— ${reason} reward=${totalReward.toFixed(1)} steps=${steps} collisions=${collisions}`,'done');
+  saveRun(type);
+  drawGrid(); updateMetrics();
+}
+
+function stopSim() {
+  clearInterval(simInterval);
+  running=false;
+  document.getElementById('btn-run').textContent='▶ Run';
+  updateStatus('Stopped.');
+}
+
+function handleReset() {
+  stopSim();
+  initEnv();
+  drawGrid(); updateMetrics();
+  updateStatus('New map generated. Press Run to start.');
+  document.getElementById('log').innerHTML='';
+  qTable={}; rlTrained=false; rlHistory=[];
+  dqnTrained=false; dqnHistory=[]; dqnMemory=[];
+  mdTrained=false; mdHistory=[]; mdMemory=[];
+  drawRLChart();
+  document.getElementById('rl-label').textContent='Run an RL agent to see training curve';
+  // keep historical run data — reset only clears training, not stats
+  updateCompareCard();
+  rebuildAnalysis();
+}
+
+function updateStatus(msg) { document.getElementById('status').textContent=msg; }
+
+function setBadge(type) {
+  const b = document.getElementById('agent-badge');
+  const map = {
+    rule:   ['Rule-Based Agent','badge badge-rule'],
+    rl:     ['Q-Learning Agent','badge badge-rl'],
+    dqn:    ['DQN Agent',       'badge badge-dqn'],
+    mddqn:  ['MD-DQN Agent',    'badge badge-mddqn'],
+    train:  ['Training…',       'badge badge-train'],
+  };
+  const [text, cls] = map[type] || map.train;
+  b.textContent=text; b.className=cls;
+}
+
+/* ================================================================
+   TABS
+   ================================================================ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    if (b.textContent.toLowerCase().includes(name==='simulate'?'sim':'anal')) b.classList.add('active');
+  });
+  if (name==='analysis') rebuildAnalysis();
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+initEnv();
+drawGrid();
+updateMetrics();
+</script>
+</body>
+</html>
