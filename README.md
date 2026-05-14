@@ -170,6 +170,14 @@ MD-DQN improves learning by leveraging prior knowledge, resulting in faster conv
 
 ---
 
+## Authors
+
+**Sadhvi Koli** — [github.com/sadhvikoli](https://github.com/sadhvikoli)
+**Aayushi Kadam** — [github.com/aayu3hi](https://github.com/aayu3hi)
+
+---
+
+
 ## GitHub
 
 https://github.com/sadhvikoli/space-rover-agent
